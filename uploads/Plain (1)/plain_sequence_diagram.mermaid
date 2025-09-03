@@ -1,0 +1,179 @@
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant A as AuthService
+    participant DB as Database
+    participant TS as TimeService
+    participant AS as AnalyticsService
+    participant AI as AIService
+    participant NS as NotificationService
+    participant PS as PaymentService
+    participant IS as IntasendAPI
+
+    %% User Registration Flow
+    Note over U,IS: User Registration & Onboarding
+    U->>F: Register with email, password, AI preference
+    F->>A: register(userData)
+    A->>DB: User.create(userData)
+    DB-->>A: User created
+    A->>DB: Subscription.create(trialData)
+    DB-->>A: Trial subscription created
+    A-->>F: AuthResult with tokens
+    F-->>U: Registration successful, redirect to dashboard
+
+    %% Authentication Flow
+    Note over U,DB: User Login
+    U->>F: Login with email/password
+    F->>A: login(email, password)
+    A->>DB: User.authenticate(email, password)
+    DB-->>A: User data if valid
+    A->>DB: UserSession.create(userId)
+    DB-->>A: Session tokens
+    A-->>F: AuthResult with access/refresh tokens
+    F-->>U: Login successful, redirect to dashboard
+
+    %% Time Entry Creation Flow
+    Note over U,AS: Manual Time Tracking
+    U->>F: Add time entry (app, duration, category)
+    F->>TS: createTimeEntry(entryData)
+    TS->>DB: TimeEntry.create(entryData)
+    DB-->>TS: TimeEntry created
+    TS->>DB: Category.getTimeEntries()
+    DB-->>TS: Updated category stats
+    TS->>AS: updateUserAnalytics(userId)
+    AS->>DB: Analytics.calculate(timeEntries)
+    DB-->>AS: Updated analytics
+    TS-->>F: TimeEntry with updated stats
+    F-->>U: Entry saved, dashboard updated
+
+    %% Dashboard Analytics Flow
+    Note over U,AS: Dashboard Data Loading
+    U->>F: Load dashboard
+    F->>AS: getUserAnalytics(userId, dateRange)
+    AS->>DB: TimeEntry.findByUserAndDateRange()
+    DB-->>AS: Time entries data
+    AS->>DB: Goal.findActiveByUser(userId)
+    DB-->>AS: Active goals
+    AS->>AS: calculateProductivityScore(timeEntries)
+    AS->>AS: generateUsagePatterns(timeEntries)
+    AS-->>F: UserAnalytics with insights
+    F-->>U: Dashboard with charts and stats
+
+    %% AI Report Generation Flow
+    Note over U,NS: Weekly AI Report Generation
+    Note over AS,NS: Scheduled Job (Weekly)
+    AS->>DB: User.findActiveSubscriptions()
+    DB-->>AS: Active users list
+    loop For each active user
+        AS->>DB: TimeEntry.getWeeklyData(userId)
+        DB-->>AS: Weekly time data
+        AS->>AI: generatePersonalizedReport(userId, agentType)
+        AI->>AI: AIAgent.generateReport(userData)
+        AI-->>AS: Personalized report content
+        AS->>NS: EmailReport.create(reportData)
+        NS->>DB: EmailReport.save()
+        DB-->>NS: Report saved
+        NS->>NS: sendEmail(userEmail, subject, content)
+        NS-->>AS: Email sent confirmation
+    end
+
+    %% Subscription Payment Flow
+    Note over U,IS: Subscription Payment Processing
+    U->>F: Upgrade to paid plan
+    F->>PS: initiatePayment(userId, planType)
+    PS->>DB: Subscription.findByUser(userId)
+    DB-->>PS: Current subscription
+    PS->>IS: createPaymentIntent(amount, currency)
+    IS-->>PS: Payment intent with redirect URL
+    PS->>DB: Payment.create(paymentData)
+    DB-->>PS: Payment record created
+    PS-->>F: Payment URL for redirect
+    F-->>U: Redirect to Intasend payment page
+    
+    %% Payment Verification Flow
+    Note over IS,DB: Payment Webhook Processing
+    IS->>PS: Payment webhook (success/failure)
+    PS->>IS: verifyPayment(transactionId)
+    IS-->>PS: Payment verification result
+    alt Payment Successful
+        PS->>DB: Payment.update(status: COMPLETED)
+        DB-->>PS: Payment updated
+        PS->>DB: Subscription.upgrade(userId, planType)
+        DB-->>PS: Subscription upgraded
+        PS->>NS: sendPaymentConfirmation(userEmail)
+        NS-->>PS: Confirmation sent
+    else Payment Failed
+        PS->>DB: Payment.update(status: FAILED)
+        DB-->>PS: Payment updated
+        PS->>NS: sendPaymentFailureNotification(userEmail)
+        NS-->>PS: Failure notification sent
+    end
+
+    %% Goal Setting and Tracking Flow
+    Note over U,AS: Goal Management
+    U->>F: Set new goal (app, target time)
+    F->>TS: createGoal(goalData)
+    TS->>DB: Goal.create(goalData)
+    DB-->>TS: Goal created
+    TS-->>F: Goal creation confirmed
+    F-->>U: Goal set successfully
+    
+    %% Goal Progress Check (Daily)
+    Note over TS,NS: Daily Goal Progress Check
+    TS->>DB: Goal.findActiveGoals()
+    DB-->>TS: Active goals list
+    loop For each active goal
+        TS->>DB: TimeEntry.getTodayUsage(userId, appName)
+        DB-->>TS: Today's usage data
+        TS->>TS: Goal.checkProgress()
+        alt Goal threshold reached (30%, 60%, 90%)
+            TS->>NS: sendGoalNotification(userId, progress)
+            NS-->>TS: Notification sent
+        end
+    end
+
+    %% Data Export Flow
+    Note over U,AS: User Data Export
+    U->>F: Request data export
+    F->>AS: exportUserData(userId)
+    AS->>DB: User.findWithAllRelations(userId)
+    DB-->>AS: Complete user data
+    AS->>AS: generateExportFile(userData)
+    AS-->>F: Export file URL
+    F-->>U: Download link provided
+
+    %% Session Management Flow
+    Note over F,A: Token Refresh
+    F->>A: refreshToken(refreshToken)
+    A->>DB: UserSession.validate(refreshToken)
+    DB-->>A: Session validation result
+    alt Valid refresh token
+        A->>DB: UserSession.create(userId)
+        DB-->>A: New session tokens
+        A-->>F: New access/refresh tokens
+    else Invalid refresh token
+        A-->>F: Authentication error
+        F-->>U: Redirect to login
+    end
+
+    %% User Profile Update Flow
+    Note over U,DB: Profile Management
+    U->>F: Update profile (name, AI preference, etc.)
+    F->>A: updateProfile(userId, updates)
+    A->>DB: User.update(userId, updates)
+    DB-->>A: Updated user data
+    A-->>F: Profile update confirmed
+    F-->>U: Profile updated successfully
+
+    %% Subscription Cancellation Flow
+    Note over U,PS: Subscription Cancellation
+    U->>F: Cancel subscription
+    F->>PS: cancelSubscription(userId)
+    PS->>DB: Subscription.findByUser(userId)
+    DB-->>PS: Current subscription
+    PS->>DB: Subscription.cancel()
+    DB-->>PS: Subscription cancelled
+    PS->>NS: sendCancellationConfirmation(userEmail)
+    NS-->>PS: Confirmation sent
+    PS-->>F: Cancellation confirmed
+    F-->>U: Subscription cancelled, access until period end

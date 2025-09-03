@@ -1,0 +1,280 @@
+classDiagram
+    class User {
+        +id: string
+        +email: string
+        +password_hash: string
+        +first_name: string
+        +last_name: string
+        +ai_agent_preference: AIAgentType
+        +subscription_status: SubscriptionStatus
+        +trial_end_date: Date
+        +created_at: Date
+        +updated_at: Date
+        +is_active: boolean
+        +email_preferences: EmailPreferences
+        +timezone: string
+        +register(userData: UserRegistrationData) User
+        +authenticate(email: string, password: string) AuthResult
+        +updateProfile(updates: UserUpdateData) User
+        +changePassword(oldPassword: string, newPassword: string) boolean
+        +deactivate() void
+    }
+
+    class UserSession {
+        +id: string
+        +user_id: string
+        +access_token: string
+        +refresh_token: string
+        +expires_at: Date
+        +created_at: Date
+        +is_active: boolean
+        +create(userId: string) UserSession
+        +refresh(refreshToken: string) UserSession
+        +revoke() void
+        +validate(token: string) boolean
+    }
+
+    class TimeEntry {
+        +id: string
+        +user_id: string
+        +app_name: string
+        +category_id: string
+        +duration_minutes: number
+        +start_time: Date
+        +end_time: Date
+        +notes: string
+        +created_at: Date
+        +updated_at: Date
+        +is_manual: boolean
+        +create(entryData: TimeEntryData) TimeEntry
+        +update(updates: TimeEntryUpdateData) TimeEntry
+        +delete() void
+        +getDurationInHours() number
+        +validate() ValidationResult
+    }
+
+    class Category {
+        +id: string
+        +user_id: string
+        +name: string
+        +color: string
+        +icon: string
+        +is_default: boolean
+        +created_at: Date
+        +updated_at: Date
+        +create(categoryData: CategoryData) Category
+        +update(updates: CategoryUpdateData) Category
+        +delete() void
+        +getTimeEntries() TimeEntry[]
+    }
+
+    class Subscription {
+        +id: string
+        +user_id: string
+        +plan_type: PlanType
+        +status: SubscriptionStatus
+        +start_date: Date
+        +end_date: Date
+        +auto_renew: boolean
+        +payment_method_id: string
+        +created_at: Date
+        +updated_at: Date
+        +create(subscriptionData: SubscriptionData) Subscription
+        +renew() Subscription
+        +cancel() void
+        +upgrade(newPlan: PlanType) Subscription
+        +isActive() boolean
+        +getDaysRemaining() number
+    }
+
+    class Payment {
+        +id: string
+        +user_id: string
+        +subscription_id: string
+        +amount: number
+        +currency: string
+        +payment_method: PaymentMethod
+        +intasend_transaction_id: string
+        +status: PaymentStatus
+        +created_at: Date
+        +processed_at: Date
+        +create(paymentData: PaymentData) Payment
+        +process() PaymentResult
+        +refund(amount: number) RefundResult
+        +verify() boolean
+    }
+
+    class AIAgent {
+        +id: string
+        +name: string
+        +personality_type: AIAgentType
+        +prompt_template: string
+        +created_at: Date
+        +updated_at: Date
+        +generateReport(userData: UserAnalytics) EmailReport
+        +getPersonalityTraits() PersonalityTraits
+        +customizeMessage(template: string, data: object) string
+    }
+
+    class EmailReport {
+        +id: string
+        +user_id: string
+        +ai_agent_id: string
+        +subject: string
+        +content: string
+        +report_type: ReportType
+        +period_start: Date
+        +period_end: Date
+        +sent_at: Date
+        +opened_at: Date
+        +status: EmailStatus
+        +create(reportData: EmailReportData) EmailReport
+        +send() boolean
+        +trackOpen() void
+        +trackClick(linkId: string) void
+    }
+
+    class Analytics {
+        +id: string
+        +user_id: string
+        +date: Date
+        +total_time_minutes: number
+        +most_used_app: string
+        +productivity_score: number
+        +goals_met: number
+        +total_goals: number
+        +created_at: Date
+        +calculate(timeEntries: TimeEntry[]) Analytics
+        +getDailyAverage(days: number) number
+        +getWeeklyTrend() TrendData
+        +getTopApps(limit: number) AppUsageData[]
+    }
+
+    class Goal {
+        +id: string
+        +user_id: string
+        +app_name: string
+        +target_minutes: number
+        +current_minutes: number
+        +goal_type: GoalType
+        +start_date: Date
+        +end_date: Date
+        +is_active: boolean
+        +created_at: Date
+        +updated_at: Date
+        +create(goalData: GoalData) Goal
+        +update(updates: GoalUpdateData) Goal
+        +checkProgress() ProgressResult
+        +isCompleted() boolean
+        +getCompletionPercentage() number
+    }
+
+    class NotificationService {
+        +sendEmail(to: string, subject: string, content: string) boolean
+        +sendBulkEmails(recipients: EmailRecipient[]) BulkEmailResult
+        +scheduleEmail(emailData: ScheduledEmailData) ScheduledEmail
+        +trackEmailMetrics(emailId: string) EmailMetrics
+        +validateEmailTemplate(template: string) ValidationResult
+    }
+
+    class PaymentService {
+        +processPayment(paymentData: PaymentData) PaymentResult
+        +verifyPayment(transactionId: string) VerificationResult
+        +refundPayment(paymentId: string, amount: number) RefundResult
+        +getPaymentMethods(userId: string) PaymentMethod[]
+        +updatePaymentMethod(methodId: string, updates: object) PaymentMethod
+    }
+
+    class AnalyticsService {
+        +generateUserAnalytics(userId: string, period: DateRange) UserAnalytics
+        +calculateProductivityScore(timeEntries: TimeEntry[]) number
+        +getUsagePatterns(userId: string) UsagePattern[]
+        +generateInsights(analytics: UserAnalytics) Insight[]
+        +exportUserData(userId: string) ExportData
+    }
+
+    class AuthService {
+        +register(userData: UserRegistrationData) AuthResult
+        +login(email: string, password: string) AuthResult
+        +logout(userId: string) void
+        +refreshToken(refreshToken: string) TokenResult
+        +resetPassword(email: string) boolean
+        +validateToken(token: string) ValidationResult
+        +revokeAllSessions(userId: string) void
+    }
+
+    class AIService {
+        +generatePersonalizedReport(userId: string, agentType: AIAgentType) string
+        +getRecommendations(userAnalytics: UserAnalytics) Recommendation[]
+        +generateInsights(timeEntries: TimeEntry[]) Insight[]
+        +customizeAgentResponse(agentType: AIAgentType, context: object) string
+    }
+
+    %% Relationships
+    User ||--o{ TimeEntry : tracks
+    User ||--o{ Category : creates
+    User ||--|| Subscription : has
+    User ||--o{ Payment : makes
+    User ||--o{ Goal : sets
+    User ||--o{ EmailReport : receives
+    User ||--o{ Analytics : generates
+    User ||--o{ UserSession : maintains
+
+    TimeEntry }o--|| Category : belongs_to
+    Subscription ||--o{ Payment : includes
+    AIAgent ||--o{ EmailReport : generates
+    
+    %% Service Dependencies
+    AuthService ..> User : manages
+    AuthService ..> UserSession : creates
+    PaymentService ..> Payment : processes
+    PaymentService ..> Subscription : updates
+    AnalyticsService ..> TimeEntry : analyzes
+    AnalyticsService ..> Analytics : generates
+    AIService ..> AIAgent : uses
+    AIService ..> EmailReport : creates
+    NotificationService ..> EmailReport : sends
+
+    %% Enums
+    class AIAgentType {
+        <<enumeration>>
+        DAN
+        JEMMA
+    }
+
+    class SubscriptionStatus {
+        <<enumeration>>
+        TRIAL
+        ACTIVE
+        CANCELLED
+        EXPIRED
+        SUSPENDED
+    }
+
+    class PlanType {
+        <<enumeration>>
+        MONTHLY
+        YEARLY
+    }
+
+    class PaymentStatus {
+        <<enumeration>>
+        PENDING
+        COMPLETED
+        FAILED
+        REFUNDED
+    }
+
+    class ReportType {
+        <<enumeration>>
+        DAILY
+        WEEKLY
+        MONTHLY
+    }
+
+    class GoalType {
+        <<enumeration>>
+        DAILY_LIMIT
+        WEEKLY_LIMIT
+        PRODUCTIVITY_TARGET
+    }
